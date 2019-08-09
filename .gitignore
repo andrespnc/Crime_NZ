@@ -1,36 +1,123 @@
-# History files
-.Rhistory
-.Rapp.history
+---
+title: "Application exercise - Insights from Crime Data in NZ"
+author: "Andres Ponce"
+output:
+ html_notebook:
+    toc: true # table of content true
+    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: true  ## if you want number sections at each table header
+    theme: united  # many options for theme, this one is my favorite.
+    fig_caption: yes
+---
 
-# Session Data files
-.RData
+```{r include=FALSE}
 
-# Example code in package build process
-*-Ex.R
+#install.packages("readxl")
+library(readxl)
+#install.packages("WDI")
+library(tidyverse)
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("plotly")
+library(plotly)
+#install.packages("DT")
+library(DT)
+library(gridExtra)
+library(grid)
+```
 
-# Output files from R CMD build
-/*.tar.gz
 
-# Output files from R CMD check
-/*.Rcheck/
+```{r include=FALSE}
+#Preparting the Data
+#crime <- read_excel("D:/Behavioral NZ/BI_recruitment_exercise_data.xls")
+crime <- read_excel("/media/andres/E859-0BC8/Behavioral NZ/BI_recruitment_exercise_data.xls")
+crime <- crime[-c(1, 2, 21), ]
 
-# RStudio files
-.Rproj.user/
 
-# produced vignettes
-vignettes/*.html
-vignettes/*.pdf
+#creating separate datasets for regions and Auckland
+crime_total_regions<-dplyr::select(crime, 1:36)
+crime_total_Auckland<-dplyr::select(crime,1, 37:71)
 
-# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
-.httr-oauth
+#using the first row as variable names
+names(crime_total_regions) <- lapply(crime_total_regions[1, ], as.character)
+crime_total_regions <- crime_total_regions[-c(1), ]
 
-# knitr and R markdown default cache directories
-/*_cache/
-/cache/
+names(crime_total_Auckland)<- lapply(crime_total_Auckland[1,], as.character)
+crime_total_Auckland<- crime_total_Auckland[-c(1),]
 
-# Temporary files created by R markdown
-*.utf8.md
-*.knit.md
+#gather data from years as values 
+crime_total_Auckland<- crime_total_Auckland %>% gather(year, convictions, 2:36) 
+crime_total_regions<- crime_total_regions %>% gather(year, convictions, 2:36)
 
-# Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
-rsconnect/
+#parse variables convictions to numeric
+crime_total_Auckland$convictions<- crime_total_Auckland$convictions %>% as.numeric()
+crime_total_regions$convictions<- crime_total_regions$convictions %>% as.numeric()
+
+#arrange divisions per year
+Auckland<-crime_total_Auckland %>% arrange(`ANZSOC division`)
+regions<- crime_total_regions %>% arrange(`ANZSOC division`)
+
+#aggregating variables
+aggAuckland <-aggregate(Auckland$convictions, by=list(Auckland$`ANZSOC division`), 
+  FUN=mean, na.rm=TRUE)
+
+aggRegions <- aggregate(regions$convictions, by=list(regions$`ANZSOC division`),
+                        FUN=mean, na.rm=TRUE)
+
+```
+
+```{r include=FALSE}
+# aggregate data barplot for regions and Auckland
+
+aggAuckland<-aggAuckland%>%
+arrange(desc(x))
+
+p<- ggplot(data=aggAuckland, aes(x=Group.1, y=x, fill = Group.1, label=sprintf("%0.2f", round(x, digits = 1)))) +
+geom_bar(stat="identity", show.legend = F)+
+  labs(x= ' Type of conviction', y= NULL) +
+  ggtitle(paste('Auckland'))+
+  geom_text(size = 4.5, hjust= -.1,  position = position_dodge(width= 0.9))+
+scale_colour_gradient2()+
+coord_flip()+
+scale_x_discrete(limits = aggAuckland$Group.1)+
+theme_classic()+ theme(
+  axis.title.x = element_text(size = 16),
+  axis.text.y = element_text(size = 16),
+  axis.title.y = element_text(size = 16))
+
+```
+
+```{r include=FALSE}
+
+# average analysis for regions
+aggRegions<-aggRegions%>%
+arrange(desc(x))
+
+r<- ggplot(data=aggRegions, aes(x=Group.1, y=x, fill = Group.1, label=sprintf("%0.2f", round(x, digits = 1)))) +
+geom_bar(stat="identity", show.legend =F)+
+  labs(y = "Average number of convictions", x= ' Type of conviction') +
+  ggtitle(paste('Regions'))+
+  geom_text(size = 4.5, hjust= -.1,  position = position_dodge(width= 0.9))+
+scale_colour_gradient2()+
+coord_flip()+
+scale_x_discrete(limits = aggRegions$Group.1)+
+theme_classic()+ theme(
+  axis.title.x = element_text(size = 16),
+  axis.text.y = element_text(size = 16),
+  axis.title.y = element_text(size = 16))
+#for eliminating value labels
+#theme(axis.text.y=element_blank())
+
+```
+
+# Analysis of Average Data Over Time
+
+The data used in this analysis depicts the situation of crime convictions of Adults in Auckland and Regions of New zealand, the period correspond to 1980 until 2014. 
+
+The aim of the following graph is to provide an aggregate perspective on different types of offenses and showcase the main differences among the locations.
+
+
+```{r echo=FALSE, fig.height=20, fig.width=25}
+gridExtra::grid.arrange(p, r, nrow=2, top = textGrob("Average number of yearly convictions in Auckland and Regions (1980-2014)", gp= gpar(fontsize=25, font=3)))
+
+```
