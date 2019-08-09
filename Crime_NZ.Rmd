@@ -192,4 +192,3 @@ GR_R <- ggplot(GR_Regions, aes(x=`car name`, y=x, label=sprintf("%0.2f", round(x
 gridExtra::grid.arrange(GR_A, GR_R, nrow=2, top = textGrob("Average Growth Rate of Convictions in Auckland and Regions (1980-2014)", gp= gpar(fontsize=20, font=3)))
 
 ```
-```
